@@ -1,0 +1,12 @@
+[package]
+name = "ggml-internal"
+version = "0.1.0"
+edition = "2021"
+
+
+[build-dependencies]
+cmake = "0.1.4"
+bindgen = "0.62.0"
+
+
+[dependencies]
