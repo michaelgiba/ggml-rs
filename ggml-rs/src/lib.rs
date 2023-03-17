@@ -5,16 +5,17 @@ use std::{
     sync::{Arc, Weak},
 };
 
-pub use ggml_internal::ggml_type as Type;
 
-// pub const TYPE_Q4_0: ggml_internal::ggml_type = ggml_internal::ggml_type_GGML_TYPE_Q4_0;
-// pub const TYPE_Q4_1: ggml_internal::ggml_type = ggml_internal::ggml_type_GGML_TYPE_Q4_1;
-pub const TYPE_I8: ggml_internal::ggml_type = ggml_internal::ggml_type_GGML_TYPE_I8;
-pub const TYPE_I16: ggml_internal::ggml_type = ggml_internal::ggml_type_GGML_TYPE_I16;
-pub const TYPE_I32: ggml_internal::ggml_type = ggml_internal::ggml_type_GGML_TYPE_I32;
-pub const TYPE_F16: ggml_internal::ggml_type = ggml_internal::ggml_type_GGML_TYPE_F16;
-pub const TYPE_F32: ggml_internal::ggml_type = ggml_internal::ggml_type_GGML_TYPE_F32;
-pub const TYPE_COUNT: ggml_internal::ggml_type = ggml_internal::ggml_type_GGML_TYPE_COUNT;
+// Originally adapted from https://raw.githubusercontent.com/setzer22/llama-rs/main/llama-rs/src/ggml.rs
+
+pub use ggml_internal::ggml_type as TensorDType;
+
+pub const TYPE_I8: TensorDType = ggml_internal::ggml_type_GGML_TYPE_I8;
+pub const TYPE_I16: TensorDType = ggml_internal::ggml_type_GGML_TYPE_I16;
+pub const TYPE_I32: TensorDType = ggml_internal::ggml_type_GGML_TYPE_I32;
+pub const TYPE_F16: TensorDType = ggml_internal::ggml_type_GGML_TYPE_F16;
+pub const TYPE_F32: TensorDType = ggml_internal::ggml_type_GGML_TYPE_F32;
+pub const TYPE_COUNT: TensorDType = ggml_internal::ggml_type_GGML_TYPE_COUNT;
 
 /// Acts as a RAII-guard over a `ggml_internal::ggml_context`, allocating via
 /// ggml_init and dropping via ggml_free
@@ -30,8 +31,6 @@ impl Context {
         let raw = unsafe {
             ggml_internal::ggml_init(ggml_internal::ggml_init_params {
                 mem_size,
-                // Null here means we want ggml to own this memory. We don't
-                // support passing an owned buffer from the Rust side.
                 mem_buffer: std::ptr::null_mut(),
             })
         };
@@ -40,6 +39,18 @@ impl Context {
         }
     }
 
+    pub fn init_managed(mem: &mut [u8]) -> Self {
+        let raw = unsafe {
+            ggml_internal::ggml_init(ggml_internal::ggml_init_params {
+                mem_size: mem.len() * std::mem::size_of::<u8>(),
+                mem_buffer: mem.as_mut_ptr() as *mut c_void,
+            })
+        };
+        Self {
+            ptr: Arc::new(NonNull::new(raw).expect("Should not be null")),
+        }
+    }    
+
     fn new_tensor_raw(&self, raw: *mut ggml_internal::ggml_tensor) -> Tensor {
         Tensor {
             ptr: NonNull::new(raw).expect("Should not be null"),
@@ -47,18 +58,18 @@ impl Context {
         }
     }
 
-    pub fn new_tensor_1d(&self, typ: ggml_internal::ggml_type, ne0: i32) -> Tensor {
-        let raw = unsafe { ggml_internal::ggml_new_tensor_1d(self.ptr.as_ptr(), typ, ne0) };
+    pub fn new_tensor_1d(&self, dtype: TensorDType, ne0: i32) -> Tensor {
+        let raw = unsafe { ggml_internal::ggml_new_tensor_1d(self.ptr.as_ptr(), dtype, ne0) };
         self.new_tensor_raw(raw)
     }
 
-    pub fn new_tensor_2d(&self, typ: ggml_internal::ggml_type, ne0: i32, ne1: i32) -> Tensor {
-        let raw = unsafe { ggml_internal::ggml_new_tensor_2d(self.ptr.as_ptr(), typ, ne0, ne1) };
+    pub fn new_tensor_2d(&self, dtype: TensorDType, ne0: i32, ne1: i32) -> Tensor {
+        let raw = unsafe { ggml_internal::ggml_new_tensor_2d(self.ptr.as_ptr(), dtype, ne0, ne1) };
         self.new_tensor_raw(raw)
     }
 
-    pub fn new_tensor_3d(&self, typ: ggml_internal::ggml_type, ne0: i32, ne1: i32, ne2: i32) -> Tensor {
-        let raw = unsafe { ggml_internal::ggml_new_tensor_3d(self.ptr.as_ptr(), typ, ne0, ne1, ne2) };
+    pub fn new_tensor_3d(&self, dtype: TensorDType, ne0: i32, ne1: i32, ne2: i32) -> Tensor {
+        let raw = unsafe { ggml_internal::ggml_new_tensor_3d(self.ptr.as_ptr(), dtype, ne0, ne1, ne2) };
         self.new_tensor_raw(raw)
     }
 
@@ -101,11 +112,6 @@ impl Context {
             unsafe { ggml_internal::ggml_add(self.ptr.as_ptr(), a.ptr.as_ptr(), b.ptr.as_ptr()) };
         self.new_tensor_raw(tensor)
     }
-
-    // pub fn op_silu(&self, a: &Tensor) -> Tensor {
-    //     let tensor = unsafe { ggml_internal::ggml_silu(self.ptr.as_ptr(), a.ptr.as_ptr()) };
-    //     self.new_tensor_raw(tensor)
-    // }
 
     pub fn op_scale(&self, a: &Tensor, b: &Tensor) -> Tensor {
         let tensor =
@@ -227,6 +233,44 @@ impl Tensor {
         })
     }
 
+    pub fn set_i32(&self, value: i32) {
+        self.with_alive_ctx(|| {
+            // SAFETY: The with_alive_call guarantees the context is alive
+            unsafe { ggml_internal::ggml_set_i32(self.ptr.as_ptr(), value) }
+        });
+    }
+
+    pub fn set_f32(&self, value: f32) {
+        self.with_alive_ctx(|| {
+            // SAFETY: The with_alive_call guarantees the context is alive
+            unsafe { ggml_internal::ggml_set_f32(self.ptr.as_ptr(), value) }
+        });
+    }    
+
+    pub fn set_i32_1d(&self, idx: i32, value: i32) -> Result<(), ()> {
+        self.with_alive_ctx(|| {
+            if idx > self.nelements() {
+                Err(())
+            } else {
+                // SAFETY: The with_alive_call guarantees the context is alive
+                unsafe { ggml_internal::ggml_set_i32_1d(self.ptr.as_ptr(), idx, value) };
+                Ok(())
+            }
+        })
+    }
+
+    pub fn set_f32_1d(&self, idx: i32,  value: f32) -> Result<(), ()> {
+        self.with_alive_ctx(|| {
+            if idx > self.nelements() {
+                Err(())
+            } else {
+                // SAFETY: The with_alive_call guarantees the context is alive
+                unsafe { ggml_internal::ggml_set_f32_1d(self.ptr.as_ptr(), idx, value) };
+                Ok(())
+            }
+        })
+    }        
+
     pub fn get_ne(&self) -> [i32; 4] {
         self.with_alive_ctx(|| unsafe { *self.ptr.as_ptr() }.ne)
     }
@@ -235,7 +279,7 @@ impl Tensor {
         self.with_alive_ctx(|| unsafe { *self.ptr.as_ptr() }.nb)
     }
 
-    pub fn get_type(&self) -> ggml_internal::ggml_type {
+    pub fn get_type(&self) -> TensorDType {
         self.with_alive_ctx(|| unsafe { *self.ptr.as_ptr() }.type_)
     }
 
@@ -243,12 +287,16 @@ impl Tensor {
         self.with_alive_ctx(|| unsafe { ggml_internal::ggml_element_size(self.ptr.as_ptr()) })
     }
 
+    /// # Safety
+    /// Caller should ensure bounds are checked or use `set_*` functions    
     pub unsafe fn write_data(&self, src: &[u8]) {
         std::ptr::copy_nonoverlapping(src.as_ptr(), self.data() as *mut u8, src.len())
     }
 
+    /// # Safety
+    /// Caller should `dst` length is valid for tensor.
     pub unsafe fn read_data(&self, offset: usize, dst: &mut [u8]) {
-        let data = unsafe { ggml_internal::ggml_get_data(self.ptr.as_ptr()).add(offset) };
+        let data = ggml_internal::ggml_get_data(self.ptr.as_ptr()).add(offset);
         std::ptr::copy_nonoverlapping(data, dst as *mut _ as _, dst.len())
     }
 }
@@ -274,7 +322,3 @@ impl ComputationGraph {
     }
 }
 
-
-pub fn main() {
-    let ctx = Context::init(1024 * 1024);
-}

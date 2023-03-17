@@ -2,6 +2,7 @@
 members = [
     "ggml-internal",
     "ggml-rs",
+    "examples/simple",
 ]
 
 resolver = "2"
