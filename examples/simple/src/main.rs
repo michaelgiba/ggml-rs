@@ -55,10 +55,10 @@ mod tests {
         let mut buffer: ManagedMemory = ManagedMemory([0; MEMORY_SIZE]);
         let ctx = Context::init_managed(&mut buffer.0);
 
-        let tensor_a = ctx.new_tensor_1d(TYPE_I8, 5);
+        let tensor_a = ctx.new_tensor_1d(DataType::I8, 5);
         test_i32_value_setting(&tensor_a);
 
-        let tensor_b = ctx.new_tensor_1d(TYPE_F32, 5);
+        let tensor_b = ctx.new_tensor_1d(DataType::F32, 5);
         test_f32_value_setting(&tensor_b);
 
         println!("{:?}", tensor_a);
@@ -68,9 +68,9 @@ mod tests {
     #[test]
     fn test_internally_managed_memory() {
         let ctx = Context::init(MEMORY_SIZE);
-        let tensor_a = ctx.new_tensor_1d(TYPE_I8, 5);
+        let tensor_a = ctx.new_tensor_1d(DataType::I8, 5);
         test_i32_value_setting(&tensor_a);
-        let tensor_b = ctx.new_tensor_1d(TYPE_F32, 5);
+        let tensor_b = ctx.new_tensor_1d(DataType::F32, 5);
         test_f32_value_setting(&tensor_b);
     }
 }
