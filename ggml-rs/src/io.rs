@@ -1,12 +1,16 @@
-use bincode::Error as BincodeError;
 use std::io::Error as IoError;
+use crate::context::Context;
+pub use ggml_io::{ModelIO, model_io};
+
 
 pub enum ModelIOError {
     IoError(IoError),
-    BincodeError(BincodeError),
 }
 
 pub trait ModelIO: Sized {
-    fn read_from_disk(path: &str) -> Result<Self, ModelIOError>;
-    fn write_to_disk(&self, path: &str) -> Result<(), ModelIOError>;
+    fn read(ctx: &Context, path: &str) -> Result<Self, ()>;
+    fn write(&self, path: &str) -> Result<(), ModelIOError>;
 }
+
+
+

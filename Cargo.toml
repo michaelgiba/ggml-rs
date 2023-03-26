@@ -3,6 +3,7 @@ members = [
     "ggml-internal",
     "ggml-rs",
     "examples/simple",
+    "examples/model-io",
 ]
 
 resolver = "2"

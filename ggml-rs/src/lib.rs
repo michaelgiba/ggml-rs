@@ -1,10 +1,11 @@
 mod context;
 mod graph;
-mod io;
+pub mod io;
+pub extern crate bincode;
+
 mod ops;
 mod tensor;
 
 pub use context::Context;
 pub use graph::ComputationGraph;
-pub use io::ModelIOError;
 pub use tensor::{DataType, Tensor};
