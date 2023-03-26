@@ -9,12 +9,7 @@ mod tests {
 
     #[model_io]
     struct AttentionWeights {
-        k: [f64; 64],
-    }
-
-    #[model_io]
-    struct ClipHyperparameters {
-        f3: f64
+        k: [u16; 4],
     }
 
     #[model_io]
@@ -22,6 +17,7 @@ mod tests {
         attention1: AttentionWeights,
         attention2: AttentionWeights,
         attention3: AttentionWeights,
+        attention4: AttentionWeights,
     }
 
     const MEMORY_SIZE: usize = 1024 * 512;
@@ -29,13 +25,14 @@ mod tests {
     #[repr(align(16))]
     struct ManagedMemory([u8; MEMORY_SIZE]);
 
-
-    macro_rules! test_file {($fname:expr) => (
-        concat!(env!("CARGO_MANIFEST_DIR"), "/", $fname) // assumes Linux ('/')!
-    )}
+    macro_rules! test_file {
+        ($fname:expr) => {
+            concat!(env!("CARGO_MANIFEST_DIR"), "/", $fname) // assumes Linux ('/')!
+        };
+    }
 
     #[test]
-    fn test_managed_memory() {
+    fn test_reader() {
         let mut buffer: ManagedMemory = ManagedMemory([0; MEMORY_SIZE]);
         let ctx = Context::init_managed(&mut buffer.0);
 
@@ -45,15 +42,12 @@ mod tests {
 
         let mut reader = File::open(&test_file_path).expect("Failed to open file");
 
-        // match ClipWeights::read(&ctx, &mut reader) {
-        //     Ok(weights) => assert!(weights.write("output.txt").is_ok()),
-        //     Err(_) => (assert!(false)),
-        // }
-
         match ClipWeights::read_to_tensor(&ctx, &mut reader) {
-            Ok(tensor) => assert!(true),
+            Ok(tensor) => {
+                print!("{:?}", tensor);
+                assert!(true)
+            }
             Err(_) => (assert!(false)),
         }
-
     }
 }

@@ -1,7 +1,7 @@
 use crate::context::Context;
+use crate::tensor::Tensor;
 pub use ggml_io::{model_io, ModelIO};
 use std::io::Error as IoError;
-use crate::tensor::Tensor;
 
 pub enum ModelIOError {
     IoError(IoError),

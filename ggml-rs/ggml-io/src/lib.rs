@@ -11,22 +11,40 @@ pub fn derive_model_io(input: TokenStream) -> TokenStream {
     let name = &input.ident;
 
     let gen = quote! {
+
+        macro_rules! model_io_bincode_config {
+            () => { bincode::config::standard().skip_fixed_array_length() };
+        }
+
         impl ggml_rs::io::ModelIO for #name {
             fn read_to_tensor<R: std::io::Read>(ctx: &Context, reader: &mut R) -> Result<ggml_rs::Tensor, ()> {
-                // let new_tensor = ctx.new_tensor_1d(ggml_rs::DataType::I8, 2);
-                // let mut local_buf = [0u8; 2];
-                let raw_data_type: Result<Self, bincode::error::DecodeError> = bincode::decode_from_std_read(
-                    &mut reader,     bincode::config::standard()
-                );
-                println!("{:?}", raw_data_type);
-                // reader.read_exact(&mut local_buf);
-                // new_tensor.write_bytes(&local_buf);
-                Err(())
+                let config = model_io_bincode_config!();
+                match Self::read(ctx, reader) {
+                    Ok(serialized) => {
+                        let mut buf: Vec<u8> = bincode::encode_to_vec(serialized, config).unwrap();
+                        let new_tensor = ctx.new_tensor_1d(ggml_rs::DataType::I8, buf.len() as i32);
+                        if new_tensor.write_bytes(&buf).is_ok() {
+                            Ok(new_tensor)
+                        } else {
+                            Err(())
+                        }
+                    }|
+                    Err(_) => Err(()),
+                }
             }
 
 
             fn read<R: std::io::Read>(ctx: &Context, reader: &mut R) -> Result<Self, ()> {
-                Err(())
+                let config = model_io_bincode_config!();
+                let raw_data_type: Result<Self, bincode::error::DecodeError> = bincode::decode_from_std_read(
+                    reader, config
+                );
+
+                match raw_data_type {
+                    Ok(data) => Ok(data),
+                    Err(_) => Err(()),
+                }
+
             }
 
             fn write(&self, path: &str) -> Result<(), ggml_rs::io::ModelIOError> {
@@ -44,7 +62,7 @@ pub fn model_io(
 ) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let output = quote! {
-        #[derive(bincode::Decode, bincode::Encode, ggml_rs::io::ModelIO)]
+        #[derive(Debug, bincode::Decode, bincode::Encode, ggml_rs::io::ModelIO)]
         #input
     };
     output.into()
