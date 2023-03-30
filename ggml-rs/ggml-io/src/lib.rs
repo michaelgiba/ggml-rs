@@ -18,21 +18,26 @@ pub fn derive_model_io(input: TokenStream) -> TokenStream {
 
         impl ggml_rs::io::ModelIO for #name {
             fn read_to_tensor<R: std::io::Read>(ctx: &Context, reader: &mut R) -> Result<ggml_rs::Tensor, ()> {
-                let config = model_io_bincode_config!();
                 match Self::read(ctx, reader) {
-                    Ok(serialized) => {
-                        let mut buf: Vec<u8> = bincode::encode_to_vec(serialized, config).unwrap();
-                        let new_tensor = ctx.new_tensor_1d(ggml_rs::DataType::I8, buf.len() as i32);
-                        if new_tensor.write_bytes(&buf).is_ok() {
-                            Ok(new_tensor)
-                        } else {
-                            Err(())
-                        }
-                    }|
-                    Err(_) => Err(()),
+                    Ok(serialized) => serialized.to_tensor(ctx),
+                    Err(_) => {
+                        Err(())
+                    }
                 }
             }
 
+
+            fn to_tensor(self, ctx: &Context) -> Result<ggml_rs::Tensor, ()> {
+                let config = model_io_bincode_config!();
+                let mut buf: Vec<u8> = bincode::encode_to_vec(self, config).unwrap();
+                let new_tensor = ctx.new_tensor_1d(ggml_rs::DataType::I8, buf.len() as i32);
+                if new_tensor.write_bytes(&buf).is_ok() {
+                    Ok(new_tensor)
+                } else {
+                    Err(())
+                }
+
+            }
 
             fn read<R: std::io::Read>(ctx: &Context, reader: &mut R) -> Result<Self, ()> {
                 let config = model_io_bincode_config!();
