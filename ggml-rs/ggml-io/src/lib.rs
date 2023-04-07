@@ -48,14 +48,14 @@ pub fn derive_model_io(input: TokenStream) -> TokenStream {
                     ),
                     ggml_rs::Dimension::D2 => ctx.new_tensor_2d(
                         ggml_rs::DataType::I8,
-                        shape[0].unwrap(),
-                        shape[1].unwrap(),
+                        shape[0].unwrap_or(buf.len()),
+                        shape[1].unwrap_or(1), // WRONG - properly infer shapes
                     ),
                     ggml_rs::Dimension::D3 => ctx.new_tensor_3d(
                         ggml_rs::DataType::I8,
-                        shape[0].unwrap(),
-                        shape[1].unwrap(),
-                        shape[2].unwrap(),
+                        shape[0].unwrap_or(buf.len()),
+                        shape[1].unwrap_or(1), // WRONG - properly infer shapes
+                        shape[2].unwrap_or(1), // WRONG - properly infer shapes
                     ),
                 };
 
