@@ -8,4 +8,4 @@ mod tensor;
 
 pub use context::Context;
 pub use graph::ComputationGraph;
-pub use tensor::{DataType, Tensor};
+pub use tensor::{DataType, Dimension, Tensor};

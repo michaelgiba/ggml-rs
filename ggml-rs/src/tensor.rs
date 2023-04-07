@@ -30,11 +30,21 @@ impl From<u32> for DataType {
     }
 }
 
+#[derive(Clone)]
+pub enum Dimension {
+    Scalar,
+    D1,
+    D2,
+    D3,
+}
+
 /// Tensors are owned by the context. A tensor is alive as long as the
 /// underlying context it was created with is alive.
 pub struct Tensor {
     pub(crate) ptr: NonNull<ggml_internal::ggml_tensor>,
     pub(crate) ctx: Weak<NonNull<ggml_internal::ggml_context>>,
+    pub(crate) dim: Dimension,
+    pub(crate) shape: [usize; 4],
 }
 
 impl Tensor {
@@ -43,6 +53,8 @@ impl Tensor {
         Tensor {
             ptr: self.ptr,
             ctx: Weak::clone(&self.ctx),
+            dim: self.dim.clone(),
+            shape: self.shape,
         }
     }
 
