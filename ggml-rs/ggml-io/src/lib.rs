@@ -2,9 +2,9 @@
 
 extern crate proc_macro;
 use proc_macro::TokenStream;
-use quote::{quote, ToTokens};
+use quote::{quote};
 use syn::Lit::Str;
-use syn::{parse_macro_input, DeriveInput, LitStr};
+use syn::{parse_macro_input, DeriveInput};
 
 #[proc_macro_derive(ModelIO, attributes(tensor_params))]
 pub fn derive_model_io(input: TokenStream) -> TokenStream {
@@ -37,7 +37,7 @@ pub fn derive_model_io(input: TokenStream) -> TokenStream {
     let gen = quote! {
 
         macro_rules! model_io_bincode_config {
-            () => { bincode::config::standard().skip_fixed_array_length().with_variable_int_encoding() };
+            () => { bincode::config::standard().skip_fixed_array_length().with_fixed_int_encoding() };
         }
 
         impl ggml_rs::io::ModelIO for #name {
@@ -49,7 +49,6 @@ pub fn derive_model_io(input: TokenStream) -> TokenStream {
             ) -> Result<ggml_rs::Tensor, ()> {
                 match Self::read(ctx, reader) {
                     Ok(serialized) => {
-                        println!("{:?}", serialized);
                         serialized.to_tensor(ctx, dim, shape)
                     },
                     Err(_) => {
@@ -110,15 +109,8 @@ pub fn derive_model_io(input: TokenStream) -> TokenStream {
     gen.into()
 }
 
-#[proc_macro_attribute]
-pub fn model_io(
-    metadata: proc_macro::TokenStream,
-    input: proc_macro::TokenStream,
-) -> proc_macro::TokenStream {
-    let input = parse_macro_input!(input as DeriveInput);
-
-    let attr_terms: Vec<String> = metadata.into_iter().map(|x| x.to_string()).collect();
-    let datatype: String = match attr_terms.len() {
+fn fetch_static_tensor_datatype(attr_terms: Vec<String>) -> String {
+    match attr_terms.len() {
         0 => String::from("i8"),
         3 => {
             if attr_terms[0] == "ggml_datatype" && attr_terms[1] == "=" {
@@ -128,7 +120,18 @@ pub fn model_io(
             }
         }
         _ => panic!("Invalid attribute provided to macro."),
-    };
+    }
+}
+
+#[proc_macro_attribute]
+pub fn static_tensor(
+    metadata: proc_macro::TokenStream,
+    input: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+
+    let attr_terms: Vec<String> = metadata.into_iter().map(|x| x.to_string()).collect();
+    let datatype = fetch_static_tensor_datatype(attr_terms);
 
     let output = quote! {
         #[derive(Debug, bincode::Decode, bincode::Encode, ggml_rs::io::ModelIO)]

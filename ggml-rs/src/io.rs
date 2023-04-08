@@ -1,6 +1,6 @@
 use crate::context::Context;
 use crate::tensor::{Dimension, Tensor};
-pub use ggml_io::{model_io, ModelIO};
+pub use ggml_io::{static_tensor, ModelIO};
 use std::io::Error as IoError;
 
 pub enum ModelIOError {

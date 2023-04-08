@@ -3,30 +3,30 @@ pub fn main() {}
 #[cfg(test)]
 mod tests {
 
-    use ggml_rs::io::{model_io, ModelIO};
+    use ggml_rs::io::{static_tensor, ModelIO};
     use ggml_rs::Context;
     use ggml_rs::Dimension;
     use std::fs::File;
     use std::io::Seek;
 
-    #[model_io(ggml_datatype = i8)]
-    struct EightBitParam {
-        k: i8,
-    }
+    #[static_tensor]
+    struct EightBitParam(i8);
 
-    #[model_io(ggml_datatype = i32)]
-    struct SixteenBitParam {
-        k: i32,
-    }
+    #[static_tensor(ggml_datatype = i32)]
+    struct FourByteParam(i32);
 
-    #[model_io(ggml_datatype = i8)]
-    struct RectU8Param {
-        k: [[i8; 4]; 8],
-    }
+    #[static_tensor(ggml_datatype = i8)]
+    struct RectU8Param([[i8; 4]; 8]);
 
-    #[model_io(ggml_datatype = i8)]
-    struct CubeU8Param {
-        k: [[[i8; 2]; 2]; 2],
+    #[static_tensor(ggml_datatype = i8)]
+    struct CubeU8Param([[[i8; 2]; 2]; 2]);
+
+    // #[static_layer]
+    struct BasicStaticLayer {
+        a: EightBitParam,
+        b: FourByteParam,
+        c: RectU8Param,
+        d: CubeU8Param,
     }
 
     const MEMORY_SIZE: usize = 1024 * 512;
@@ -48,7 +48,9 @@ mod tests {
         let test_file_path = test_file!("resources/model.bin");
         let mut reader = File::open(&test_file_path).expect("Failed to open file");
 
-        for _ in 0..16 {
+        for i in 0..16 {
+            assert_eq!(reader.stream_position().unwrap(), i);
+
             let read_result =
                 EightBitParam::read_to_tensor(&ctx, &mut reader, Dimension::D1, vec![None]);
             assert!(read_result.is_ok());
@@ -68,19 +70,16 @@ mod tests {
         let test_file_path = test_file!("resources/model.bin");
         let mut reader = File::open(&test_file_path).expect("Failed to open file");
 
-        for _ in 0..16 {
+        for i in 0..4 {
+            assert_eq!(reader.stream_position().unwrap(), i * 4);
+
             let read_result =
-                SixteenBitParam::read_to_tensor(&ctx, &mut reader, Dimension::D1, vec![Some(1)]);
-            println!("{:?}", reader.stream_position());
+                FourByteParam::read_to_tensor(&ctx, &mut reader, Dimension::D1, vec![Some(1)]);
 
-            assert!(read_result.is_ok());
-            let tensor = read_result.unwrap();
-            println!("{:?}", tensor.read_elements::<u8>(0, 4));
-
-            assert_eq!(tensor.nbytes(), 4);
+            assert_eq!(read_result.unwrap().nbytes(), 4);
         }
         assert!(
-            SixteenBitParam::read_to_tensor(&ctx, &mut reader, Dimension::D1, vec!(None)).is_err()
+            FourByteParam::read_to_tensor(&ctx, &mut reader, Dimension::D1, vec!(None)).is_err()
         );
     }
 
