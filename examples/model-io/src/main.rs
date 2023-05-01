@@ -12,13 +12,13 @@ mod tests {
     #[static_tensor]
     struct EightBitParam(i8);
 
-    #[static_tensor(ggml_datatype = i32)]
+    #[static_tensor(ggml_datatype = i32, ggml_dim = D1)]
     struct FourByteParam(i32);
 
-    #[static_tensor(ggml_datatype = i8)]
+    #[static_tensor(ggml_datatype = i8, ggml_dim = D2)]
     struct RectU8Param([[i8; 4]; 8]);
 
-    #[static_tensor(ggml_datatype = i8)]
+    #[static_tensor(ggml_datatype = i8, ggml_dim = D3)]
     struct CubeU8Param([[[i8; 2]; 2]; 2]);
 
     // #[static_layer]
@@ -36,7 +36,7 @@ mod tests {
 
     macro_rules! test_file {
         ($fname:expr) => {
-            concat!(env!("CARGO_MANIFEST_DIR"), "/", $fname) // assumes Linux ('/')!
+            concat!(env!("CARGO_MANIFEST_DIR"), "/", $fname)
         };
     }
 
@@ -134,5 +134,31 @@ mod tests {
             vec!(None, None, None)
         )
         .is_err());
+    }
+
+    #[test]
+    fn test_read_layer() {
+        // let ctx = Context::init(MEMORY_SIZE);
+        // let test_file_path = test_file!("resources/model64bytes.bin");
+        // let mut reader = File::open(&test_file_path).expect("Failed to open file");
+
+        // for _ in 0..8 {
+        //     let read_result = BasicStaticLayer::read_layer(
+        //         &ctx,
+        //         &mut reader,
+        //         Dimension::D3,
+        //         vec![Some(2), Some(2), Some(2)],
+        //     );
+        //     assert!(read_result.is_ok());
+        //     let tensor = read_result.unwrap();
+        //     assert_eq!(tensor.nbytes(), 8);
+        // }
+        // assert!(BasicStaticLayer::read_to_tensor(
+        //     &ctx,
+        //     &mut reader,
+        //     Dimension::D3,
+        //     vec!(None, None, None)
+        // )
+        // .is_err());
     }
 }
